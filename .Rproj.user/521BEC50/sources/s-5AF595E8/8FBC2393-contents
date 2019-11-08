@@ -1,0 +1,31 @@
+########################################################
+## read Harry's PrimaryPolls
+##
+## simon jackman
+## simon.jackman@sydney.edu.au
+## ussc, univ of sydney
+## 2019-11-08 09:38:26
+########################################################
+
+library(here)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+
+polls <- read_xlsx(path=here::here("data/PrimaryPollsSince1980.xlsx"),sheet = 1)
+
+polls <- polls %>%
+  mutate(st=state.abb[match(state,state.name)]) %>%
+  mutate(ex = interval(start_date,end_date),
+         mid_date = ex@start + (int_end(ex)-int_start(ex))/2)
+
+table(polls$contest)
+table(polls$cycle)
+table(polls$type)
+table(polls$candidateparty)
+table(polls$state)
+table(polls$st,polls$cycle)
+
+## iowa polls
+iowa <- polls %>%
+  filter(st=="IA")
