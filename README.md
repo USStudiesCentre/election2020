@@ -1,4 +1,4 @@
-# Analysis for 2020 primaries
+# USSC analysis for 2020 primaries
 
 
 ## Instructions for cloning the repository to your local machine
