@@ -1,0 +1,163 @@
+---
+title: Iowa Analysis
+output:
+  pdf_document:
+    latex_engine: xelatex
+    dev: cairo_pdf
+    fig_crop: false
+    includes:
+      in_header: templates/preamble.tex
+  html_document:
+    css: templates/preamble.css
+fontsize: 11pt
+author:
+- Simon Jackman^[Professor of Political Science and CEO, USSC, University of Sydney]
+- Zoe Meers^[Data Visualization Analyst and Research Assistant, USSC, University of Sydney]
+date: "`r format(Sys.time(), '%e %B %Y')`"
+include-before:
+  - \thispagestyle{empty}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(ussc)
+library(dplyr)
+library(here)
+library(ggplot2)
+```
+
+
+# Exploratory data analysis
+
+
+```{r, eval=TRUE, include=FALSE}
+source(here::here("R/iowa/eda_iowa.R"))
+```
+
+We define the candidates of interest to be those who received more than 10% of the vote in the Iowa caucus. Of all campaigns - i.e. including candidates who may have run for president more than once - that entered the Iowa primaries from 1980 to 2016 (**`r glue::glue(polls %>% count(contest, true_name) %>% nrow)`**), we remove **`r glue::glue(polls %>% count(contest, true_name) %>% nrow - iowa_polls %>% count(contest, true_name) %>% nrow)`** campaigns^[Including some who went on to be quite successful later on in the election e.g. Bill Clinton.]. This leaves the following campaigns for our Iowa model.
+
+```{r}
+iowa_polls %>% 
+  count(contest, true_name, iowa_pct) %>% 
+  select(-n) %>% 
+  separate(contest, c("Election year", "Party"), sep = 4) %>%
+  mutate(iowa_pct = round(iowa_pct)) %>% 
+  rename("Candidate" = true_name,
+         "Percent won in Iowa" = iowa_pct) %>% 
+  arrange(`Election year`) %>% 
+  mutate(Party = case_when(
+    Party == "D" ~ "Democratic", 
+    TRUE ~ "Republican"
+  )) %>% 
+  knitr::kable("latex",
+               longtable = T,
+               booktabs = T,
+               caption = "Candidates included in analysis") %>% 
+  kableExtra::kable_styling(latex_options = c("repeat_header",
+                                 "striped"),
+                full_width = F) %>% 
+  kableExtra::collapse_rows(1, valign = "top")
+```
+
+Those who were removed from the analysis are noted in the Appendix. Viable candidates in this group - candidates who receive more than 15% of the national vote share - are shown below:
+
+```{r}
+viable %>% 
+  rename_all(list(~str_to_title(.)), names(.)) %>% 
+  mutate(Nationalvotepercentage = round(Nationalvotepercentage, 0)) %>% 
+  rename("Election year"= Year,
+         "Candidate" = True_name,
+         "National vote %" = Nationalvotepercentage) %>% 
+  select(-`Percentmoneyraised`, -`Iowa_date`, -`Iowa_pct`, -`Iowa Region`, -`Nh Region`,-`Money Raised Eoy`, -`Wonprimary`) %>% 
+  knitr::kable("latex",
+               longtable = T,
+               booktabs = T,
+               caption = "Viable candidates removed from analysis") %>% 
+  kableExtra::kable_styling(latex_options = c("repeat_header",
+                                 "striped"),
+                full_width = F)
+```
+While the Iowa caucus might not be an accurate predictor in terms of who actually wins the presidential election, it is an effective filter for candidates who are not performing particularly well. 
+
+For each campaign, we graph time to Iowa caucuses by share of polls. 
+
+```{r, fig.width = 12, fig.height = 12}
+iowa_eda_plot
+# plot_ussc_logo(iowa_eda_plot)
+```
+
+The difference between the loess model and the actual result is presented in the following table:
+
+```{r}
+diff %>% 
+  rename_all(list(~str_to_title(.)), names(.)) %>% 
+  rename("Election year" = Cycle) %>% 
+  mutate(Loess = round(Loess, 2)) %>% 
+  mutate(Party = case_when(
+    Party == "Dem" ~ "Democratic", 
+    TRUE ~ "Republican"
+  )) %>% 
+  rename("Absolute difference" = Difference) %>% 
+  knitr::kable("latex",
+               longtable = T,
+               booktabs = T,
+               caption = "Difference between actual result in Iowa and the loess model") %>% 
+  kableExtra::kable_styling(latex_options = c("repeat_header",
+                                 "striped"),
+                full_width = F) %>% 
+  kableExtra::collapse_rows(1, valign = "top")
+```
+
+
+
+\newpage
+\clearpage
+
+
+# Predictive model
+
+
+
+
+
+\newpage
+\clearpage
+
+# Appendix
+
+
+```{r}
+polls %>% 
+  inner_join(., read_excel(here::here("data/Presidential primary results, 1968-2016.xlsx"), sheet = 1)  %>% 
+  filter(state == "Iowa") %>%
+  select(iowa_votes = votes,
+         iowa_pct = pct,
+         contest,
+         true_name, 
+         iowa_date = date) %>% 
+               distinct(contest, true_name, iowa_date, iowa_pct)) %>%  
+  filter(iowa_pct < 10) %>% 
+  mutate(iowa_pct = round(iowa_pct)) %>% 
+  count(contest, true_name, iowa_pct) %>% 
+  distinct(contest, true_name, .keep_all = TRUE) %>% 
+  select(-n) %>% 
+  separate(contest, c("Election year", "Party"), sep = 4) %>%
+  rename("Candidate" = true_name,
+         "Percent won in Iowa" = iowa_pct) %>% 
+    mutate(Party = case_when(
+    Party == "D" ~ "Democratic", 
+    TRUE ~ "Republican"
+  )) %>% 
+  arrange(`Election year`) %>% 
+  knitr::kable("latex",
+               longtable = T,
+               booktabs = T,
+               caption = "Candidates removed from analysis") %>% 
+  kableExtra::kable_styling(latex_options = c("repeat_header",
+                                 "striped"),
+                full_width = F) %>% 
+  kableExtra::collapse_rows(1, valign = "top")
+```
+
+
+
